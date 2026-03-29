@@ -4,14 +4,14 @@ group 'com.eyedeadevelopment.fluttertts'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '2.2.20'
+    ext.kotlin_version = '2.3.20'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.android.tools.build:gradle:8.13.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -47,12 +47,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+        jvmTarget = JavaVersion.VERSION_21
     }
 }
 dependencies {
