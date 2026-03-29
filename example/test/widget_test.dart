@@ -1,30 +1,48 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter_tts_example/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+  const channel = MethodChannel('flutter_tts');
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      switch (call.method) {
+        case 'awaitSpeakCompletion':
+        case 'stop':
+          return 1;
+        case 'getVoices':
+          return <Map<String, String>>[
+            <String, String>{'name': 'Test Voice', 'locale': 'en-US'}
+          ];
+        case 'getLanguages':
+          return <String>['en-US'];
+        default:
+          return null;
+      }
+    });
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  });
+
+  testWidgets('Flutter TTS example renders its main controls',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flutter TTS'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('PLAY'), findsOneWidget);
+    expect(find.text('STOP'), findsOneWidget);
+    expect(find.text('PAUSE'), findsOneWidget);
+    expect(find.byType(Slider), findsNWidgets(3));
   });
 }

@@ -74,19 +74,20 @@ namespace {
 		registrar->AddPlugin(std::move(plugin));
 	}
 
-	void FlutterTtsPlugin::addMplayer() {
-		mPlayer = winrt::Windows::Media::Playback::MediaPlayer::MediaPlayer();
-		auto mEndedToken =
-			mPlayer.MediaEnded([=](Windows::Media::Playback::MediaPlayer const& sender,
-				Windows::Foundation::IInspectable const& args)
-				{
-				    methodChannel->InvokeMethod("speak.onComplete", NULL);
-				    if (awaitSpeakCompletion) {
-                        speakResult->Success(1);
-                    }
-					isSpeaking = false;
+		void FlutterTtsPlugin::addMplayer() {
+			mPlayer = winrt::Windows::Media::Playback::MediaPlayer::MediaPlayer();
+			auto mEndedToken =
+				mPlayer.MediaEnded([=](Windows::Media::Playback::MediaPlayer const& sender,
+					Windows::Foundation::IInspectable const& args)
+					{
+					    methodChannel->InvokeMethod("speak.onComplete", NULL);
+					    if (awaitSpeakCompletion && speakResult) {
+	                        speakResult->Success(1);
+	                        speakResult.reset();
+	                    }
+						isSpeaking = false;
 				});
-	}
+		}
 
 	bool FlutterTtsPlugin::speaking() {
 		return isSpeaking;
@@ -127,14 +128,15 @@ namespace {
 		methodChannel->InvokeMethod("speak.onContinue", NULL);
 	}
 
-	void FlutterTtsPlugin::stop() {
-	    methodChannel->InvokeMethod("speak.onCancel", NULL);
-        if (awaitSpeakCompletion) {
-            speakResult->Success(1);
-        }
+		void FlutterTtsPlugin::stop() {
+		    methodChannel->InvokeMethod("speak.onCancel", NULL);
+	        if (awaitSpeakCompletion && speakResult) {
+	            speakResult->Success(1);
+	            speakResult.reset();
+	        }
 
-		mPlayer.Close();
-		addMplayer();
+			mPlayer.Close();
+			addMplayer();
 		isSpeaking = false;
 		isPaused = false;
 	}
@@ -206,8 +208,10 @@ namespace {
 		VoiceInformation newVoice = synth.Voice();
 		std::for_each(begin(voices), end(voices), [&voiceLanguage, &newVoice, &found](const VoiceInformation& voice)
 			{
-				if (to_string(voice.Language()) == voiceLanguage) newVoice = voice;
-				found = true;
+				if (to_string(voice.Language()) == voiceLanguage) {
+					newVoice = voice;
+					found = true;
+				}
 			});
 		synth.Voice(newVoice);
 		if (found) result->Success(1);

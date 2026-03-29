@@ -346,9 +346,14 @@ class MyAppState extends State<MyApp> {
 
     // if the locale is changed, TTS auto-selects the first matching voice
     if (voiceItems.isNotEmpty) {
-      var voiceItem =
-          voiceItems.firstWhere((v) => v.value?['locale'] == selectedLanguage);
-      voice = voiceItem.value;
+      DropdownMenuItem<Map<String, String>?>? voiceItem;
+      for (final item in voiceItems) {
+        if (item.value?['locale'] == selectedLanguage) {
+          voiceItem = item;
+          break;
+        }
+      }
+      voice = voiceItem?.value;
       if (voice != null) changedVoicesDropDownItem(voice);
     }
   }

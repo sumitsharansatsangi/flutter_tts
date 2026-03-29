@@ -184,8 +184,21 @@ public class SwiftFlutterTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizer
 
   private func synthesizeToFile(text: String, fileName: String, isFullPath: Bool, result: @escaping FlutterResult) {
     var output: AVAudioFile?
-    var failed = false
+    var didComplete = false
     let utterance = AVSpeechUtterance(string: text)
+
+    func complete(_ value: Any?) {
+      guard !didComplete else { return }
+      didComplete = true
+      DispatchQueue.main.async {
+        if self.awaitSynthCompletion, let synthResult = self.synthResult {
+          synthResult(value)
+          self.synthResult = nil
+        } else {
+          result(value)
+        }
+      }
+    }
 
     if self.voice != nil {
       utterance.voice = self.voice!
@@ -196,16 +209,24 @@ public class SwiftFlutterTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizer
     utterance.volume = self.volume
     utterance.pitchMultiplier = self.pitch
 
-    if #available(iOS 13.0, *) {
-      self.synthesizer.write(utterance) { (buffer: AVAudioBuffer) in
+    guard #available(iOS 13.0, *) else {
+      complete("Unsupported iOS version")
+      return
+    }
+
+    if self.awaitSynthCompletion {
+      self.synthResult = result
+    }
+
+    self.synthesizer.write(utterance) { (buffer: AVAudioBuffer) in
         guard let pcmBuffer = buffer as? AVAudioPCMBuffer else {
             NSLog("unknow buffer type: \(buffer)")
-            failed = true
+            complete(0)
             return
         }
         print(pcmBuffer.format)
         if pcmBuffer.frameLength == 0 {
-            // finished
+            complete(1)
         } else {
           // append buffer to file
           let fileURL: URL
@@ -216,40 +237,33 @@ public class SwiftFlutterTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizer
           }
           NSLog("Saving utterance to file: \(fileURL.absoluteString)")
 
-        if output == nil {
-          do {
-            if #available(iOS 17.0, *) {
+          if output == nil {
+            do {
+              if #available(iOS 17.0, *) {
                 guard let audioFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: pcmBuffer.format.sampleRate, channels: 1, interleaved: false) else {
-                NSLog("Error creating audio format for iOS 17+")
-                failed = true
-                return
+                  NSLog("Error creating audio format for iOS 17+")
+                  complete(0)
+                  return
+                }
+                output = try AVAudioFile(forWriting: fileURL, settings: audioFormat.settings)
+              } else {
+                output = try AVAudioFile(forWriting: fileURL, settings: pcmBuffer.format.settings, commonFormat: .pcmFormatFloat32, interleaved: false)
               }
-              output = try AVAudioFile(forWriting: fileURL, settings: audioFormat.settings)
-            } else {
-              output = try AVAudioFile(forWriting: fileURL, settings: pcmBuffer.format.settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+            } catch {
+                NSLog("Error creating AVAudioFile: \(error.localizedDescription)")
+                complete(0)
+                return
             }
+          }
+
+          do {
+            try output!.write(from: pcmBuffer)
           } catch {
-              NSLog("Error creating AVAudioFile: \(error.localizedDescription)")
-              failed = true
-              return
+            NSLog("Error writing AVAudioFile: \(error.localizedDescription)")
+            complete(0)
           }
         }
-
-
-          try! output!.write(from: pcmBuffer)
-        }
       }
-    } else {
-        result("Unsupported iOS version")
-    }
-    if failed {
-        result(0)
-    }
-    if self.awaitSynthCompletion {
-      self.synthResult = result
-    } else {
-      result(1)
-    }
   }
 
   private func pause(result: FlutterResult) {
@@ -284,7 +298,7 @@ public class SwiftFlutterTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizer
   }
 
   private func setPitch(pitch: Float, result: FlutterResult) {
-    if (volume >= 0.5 && volume <= 2.0) {
+    if (pitch >= 0.5 && pitch <= 2.0) {
       self.pitch = pitch
       result(1)
     } else {
