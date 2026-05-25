@@ -1,7 +1,8 @@
+import com.android.build.api.dsl.LibraryExtension
+import org.gradle.api.tasks.compile.JavaCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-def args = ["-Xlint:deprecation"]
-
+val compilerArgs = listOf("-Xlint:deprecation")
 
 plugins {
     id("com.android.library")
@@ -11,40 +12,40 @@ group = "com.eyedeadevelopment.fluttertts"
 version = "1.0-SNAPSHOT"
 
 repositories {
-        google()
-        mavenCentral()
-    }
-
-project.getTasks().withType(JavaCompile).configureEach {
-    options.compilerArgs.addAll(args)
+    google()
+    mavenCentral()
 }
 
-android {
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(compilerArgs)
+}
+
+extensions.configure<LibraryExtension>("android") {
+
+    namespace = "com.eyedeadevelopment.fluttertts"
+
     compileSdk = 37
-     namespace = "com.eyedeadevelopment.fluttertts"
 
     defaultConfig {
-        minSdkVersion = 24
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        minSdk = 24
+
+        testInstrumentationRunner =
+            "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    lintOptions {
-        disable = "InvalidPackage"
-        disable = "GradleDependency"
+    lint {
+        disable.add("InvalidPackage")
+        disable.add("GradleDependency")
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+        jvmTarget.set(JvmTarget.JVM_21)
     }
-}
-repositories {
-    mavenCentral()
 }
